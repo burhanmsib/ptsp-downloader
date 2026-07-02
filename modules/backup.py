@@ -1,13 +1,34 @@
 from datetime import datetime
 import os
+
+from modules.client import PTSPClient
 from modules.download import PDFDownloader
 from modules.sheets import SheetManager
 from modules.drive import DriveManager
 
 
-def run_backup(bulan, log=print):
+def run_backup(
 
-    client = PTSPClient(log)
+    bulan,
+
+    username,
+
+    password,
+
+    log=print
+
+):
+    client = None
+
+    client = PTSPClient(
+    
+        username=username,
+    
+        password=password,
+    
+        log=log
+    
+    )
 
     summary = {
         "total": 0,
@@ -35,12 +56,25 @@ def run_backup(bulan, log=print):
 
         log("✅ Halaman Order berhasil dibuka")
 
-        downloader = PDFDownloader(client.context)
+        downloader = PDFDownloader(
 
-        sheet = SheetManager()
+            client.context,
+        
+            log
+        
+        )
 
-        drive = DriveManager()
+        sheet = SheetManager(
 
+            log
+        
+        )
+
+        drive = DriveManager(
+
+            log
+        
+        )
         log("✅ Google Sheet terkoneksi")
 
         log("✅ Google Drive terkoneksi")
@@ -121,27 +155,41 @@ def run_backup(bulan, log=print):
 
                 row = sheet.find_order(order["nomor"])
 
-                sheet.update(
+                waktu = datetime.now().strftime(
 
-                    row,
-
-                    nama_file=os.path.basename(file_pdf),
-
-                    status="UPLOADED",
-
-                    google_drive=drive_link,
-
-                    pdf_url=hasil["pdf_url"],
-
-                    waktu_download=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-
-                    last_check=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
+                    "%Y-%m-%d %H:%M:%S"
+                
                 )
-
+                
+                sheet.update(
+                
+                    row,
+                
+                    nama_file=os.path.basename(file_pdf),
+                
+                    status="UPLOADED",
+                
+                    google_drive=drive_link,
+                
+                    pdf_url=hasil["pdf_url"],
+                
+                    waktu_download=waktu,
+                
+                    last_check=waktu
+                
+                )
                 summary["uploaded"] += 1
 
                 log("✅ Selesai")
+                try:
+
+                    os.remove(file_pdf)
+                
+                    log("🗑 File sementara dihapus")
+                
+                except Exception:
+                
+                    pass
 
     except Exception as e:
 
@@ -155,7 +203,11 @@ def run_backup(bulan, log=print):
 
     finally:
 
+    if client:
+
         client.close()
+
+        log("🔒 Browser ditutup")
 
         log("")
         log("=" * 80)
@@ -166,5 +218,15 @@ def run_backup(bulan, log=print):
         log(f"Waiting     : {summary['waiting']}")
         log(f"Skip        : {summary['skip']}")
         log(f"Error       : {summary['error']}")
+
+    if summary["error"] == 0:
+
+    log("")
+    log("🎉 Backup selesai tanpa error")
+
+    else:
+    
+        log("")
+        log("⚠ Backup selesai dengan beberapa error")
 
     return summary
