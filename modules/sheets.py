@@ -32,14 +32,13 @@ class SheetManager:
 
         self.sheet = client.open_by_key(
 
-            SHEET_ID
-
+            st.secrets["SHEET_ID"]
+        
         ).worksheet(
-
-            SHEET_NAME
-
+        
+            st.secrets["SHEET_NAME"]
+        
         )
-
         self.log("📊 Google Sheet berhasil terkoneksi")
 
         # =====================================
