@@ -1,263 +1,257 @@
-from datetime import datetime
-import os
-from modules.download import PDFDownloader
-from modules.sheets import SheetManager
-from modules.drive import DriveManager
+from playwright.sync_api import sync_playwright
+from config import *
+import re
 
 
-def run_backup(
-    bulan,
-    username,
-    password,
-    log=print
-):
+class PTSPClient:
 
-    summary = {
-        "total": 0,
-        "uploaded": 0,
-        "waiting": 0,
-        "skip": 0,
-        "error": 0
-    }
+    def __init__(
 
-    client = None
+        self,
 
-    try:
+        username,
 
-        log("=" * 80)
-        log("🚀 MEMULAI BACKUP PTSP")
-        log("=" * 80)
+        password,
 
-        # ==========================================
-        # Client PTSP
-        # ==========================================
+        log=print
 
-        client = PTSPClient(
+    ):
 
-            username=username,
+        self.username = username
 
-            password=password,
+        self.password = password
 
-            log=log
+        self.log = log
 
+        self.playwright = None
+        self.browser = None
+        self.context = None
+        self.page = None
+
+    def start(self):
+
+        self.playwright = sync_playwright().start()
+
+        self.browser = self.playwright.chromium.launch(
+            headless=HEADLESS,
+            slow_mo=SLOW_MO
         )
 
-        client.start()
-
-        client.login()
-
-        client.open_orders()
-
-        # ==========================================
-        # Module
-        # ==========================================
-
-        downloader = PDFDownloader(
-
-            client.context,
-
-            log
-
+        self.context = self.browser.new_context(
+            accept_downloads=True
         )
 
-        sheet = SheetManager(
+        self.page = self.context.new_page()
+        
+        self.context.set_default_timeout(60000)
 
-            log
+        self.log("🚀 Browser berhasil dijalankan")
 
+    def close(self):
+
+        if self.browser:
+    
+            self.browser.close()
+    
+        if self.playwright:
+    
+            self.playwright.stop()
+    
+        self.log("🔒 Browser ditutup")
+        
+    def login(self):
+
+        self.page.goto(LOGIN_URL)
+
+        self.page.fill(
+            'input[name="txt_username"]',
+            self.username
         )
 
-        drive = DriveManager(
-
-            log
-
+        self.page.fill(
+            'input[name="txt_password"]',
+            self.password
         )
 
-        # ==========================================
-        # Cari Bulan
-        # ==========================================
+        self.page.click(
+            'button[type="submit"]'
+        )
 
-        client.search_month(bulan)
+        self.page.wait_for_load_state("networkidle")
 
-        total_pages = client.get_total_pages()
+        if "login" in self.page.url.lower():
 
-        log(f"📄 Total halaman : {total_pages}")
+            raise Exception(
+                "Username atau Password PTSP salah."
+            )
+        
+        self.log("✅ Login berhasil")
 
-        # ==========================================
-        # Loop halaman
-        # ==========================================
+    def open_orders(self):
 
-        for page in range(total_pages):
+        self.page.goto(ORDER_URL)
 
-            log("")
-            log("=" * 80)
-            log(f"📄 PAGE {page + 1} / {total_pages}")
-            log("=" * 80)
+        self.page.wait_for_load_state("networkidle")
 
-            client.goto_page(page)
+        # Tunggu tabel muncul
+        self.page.wait_for_selector("#datatable")
 
-            orders = client.get_orders()
+        self.log("✅ Halaman Order Terbayar terbuka")
 
-            log(f"Jumlah order : {len(orders)}")
+        self.log(self.page.url)
 
-            # ======================================
-            # Loop Order
-            # ======================================
+        self.page.wait_for_timeout(5000)
 
-            for order in orders:
+    def save_session(self):
 
-                summary["total"] += 1
+        self.context.storage_state(
+            path=STORAGE_STATE
+        )
 
-                log("-" * 60)
-                log(f"Nomor : {order['nomor']}")
+        self.log("💾 Session berhasil disimpan")
+    
+    def get_orders(self):
 
-                row = sheet.find_order(
+        self.page.wait_for_function("""
+        () => document.querySelectorAll("#datatable tbody tr").length > 0
+        """)
 
-                    order["nomor"]
+        orders = self.page.evaluate("""
+        () => {
 
-                )
+            return Array.from(
+                document.querySelectorAll("#datatable tbody tr")
+            ).map(row => {
 
-                if row is not None:
+                const td = row.querySelectorAll("td");
 
-                    summary["skip"] += 1
+                return {
 
-                    log("⏭ Sudah pernah diproses")
+                    id: row.querySelector(".selectedrow").value,
 
-                    continue
+                    nomor: td[1].innerText.trim(),
 
-                # ===============================
-                # Detail
-                # ===============================
+                    layanan: td[2].innerText.trim(),
 
-                client.open_detail(order)
+                    tanggal_permohonan: td[3].innerText.trim(),
 
-                hasil = client.get_pdf_url()
+                    tanggal_jatuh_tempo: td[4].innerText.trim(),
 
-                # ===============================
-                # PDF BELUM ADA
-                # ===============================
+                    pemohon: td[5].innerText.trim(),
 
-                if hasil["status"] == "WAITING":
+                    perusahaan: td[6].innerText.trim(),
 
-                    sheet.insert(
+                    hp: td[7].innerText.trim(),
 
-                        order,
+                    detail: row.querySelector('td:last-child a').href
 
-                        "WAITING"
+                };
 
-                    )
+            });
 
-                    summary["waiting"] += 1
+        }
+        """)
 
-                    log("⌛ PDF belum tersedia")
+        self.log(
+            f"📄 Jumlah order ditemukan : {len(orders)}"
+        )
 
-                    continue
+        return orders
+    
+    def open_detail(self, order):
 
-                # ===============================
-                # DOWNLOAD
-                # ===============================
+        self.log("=" * 80)
 
-                file_pdf = downloader.download(
+        self.log("Membuka Detail")
 
-                    order,
+        self.log("Nomor :", order["nomor"])
 
-                    hasil["pdf_url"]
+        self.log("URL    :", order["detail"])
 
-                )
+        self.page.goto(order["detail"])
 
-                if file_pdf is None:
+        self.page.wait_for_load_state("networkidle")
 
-                    summary["error"] += 1
+        self.page.wait_for_timeout(3000)
 
-                    log("❌ Download gagal")
+        self.log()
 
-                    continue
+        self.log("Judul :", self.page.title())
 
-                # ===============================
-                # UPLOAD DRIVE
-                # ===============================
+        self.log("URL setelah dibuka :")
 
-                drive_link = drive.upload(
+        self.log(self.page.url)
 
-                    file_pdf,
+        self.log()
 
-                    order["tanggal_permohonan"]
+        self.log("Detail berhasil dibuka")
 
-                )
+    def get_pdf_url(self):
 
-                # ===============================
-                # INSERT SHEET
-                # ===============================
+        self.log("=" * 80)
+        self.log("Mengecek halaman detail...")
+        self.log("=" * 80)
 
-                sheet.insert(
+        html = self.page.content()
 
-                    order,
+        # Cari langsung link upload/dokumen/*.pdf
+        hasil = re.search(
+            r'https://ptsp\.bmkg\.go\.id/upload/dokumen/[^"]+\.pdf',
+            html
+        )
 
-                    "UPLOADED"
+        if hasil:
 
-                )
+            pdf_url = hasil.group(0)
 
-                row = sheet.find_order(
+            self.log("✅ PDF ditemukan")
+            self.log(pdf_url)
 
-                    order["nomor"]
+            return {
+                "status": "READY",
+                "pdf_url": pdf_url
+            }
 
-                )
+        self.log("⌛ Belum ada file PDF")
 
-                # ===============================
-                # UPDATE SHEET
-                # ===============================
+        return {
+            "status": "WAITING",
+            "pdf_url": None
+        }
+    
+    def search_month(self, bulan):
 
-                sheet.update(
+        self.log(
+            f"📅 Mencari order bulan {bulan}"
+        )
+        self.page.evaluate(f"""
+        () => {{
+            let table = $('#datatable').DataTable();
 
-                    row,
+            table.search('{bulan}');
+            table.page.len(100).draw();
+        }}
+        """)
 
-                    nama_file=os.path.basename(file_pdf),
+        self.page.wait_for_timeout(3000)
 
-                    status="UPLOADED",
+    def get_total_pages(self):
 
-                    google_drive=drive_link,
+        info = self.page.evaluate("""
+        () => $('#datatable').DataTable().page.info()
+        """)
 
-                    pdf_url=hasil["pdf_url"],
+        self.log(info)
 
-                    waktu_download=datetime.now().strftime(
-                        "%Y-%m-%d %H:%M:%S"
-                    ),
+        return info["pages"]
+    
+    def goto_page(self, page):
 
-                    last_check=datetime.now().strftime(
-                        "%Y-%m-%d %H:%M:%S"
-                    )
+        self.page.evaluate(f"""
+        () => {{
+            $('#datatable').DataTable().page({page}).draw(false);
+        }}
+        """)
 
-                )
-
-                summary["uploaded"] += 1
-
-                log("✅ Backup selesai")
-
-    except Exception as e:
-
-        summary["error"] += 1
-
-        log("")
-        log("=" * 80)
-        log("❌ TERJADI ERROR")
-        log("=" * 80)
-        log(str(e))
-
-        raise
-
-    finally:
-
-        if client:
-
-            client.close()
-
-        log("")
-        log("=" * 80)
-        log("📊 RINGKASAN")
-        log("=" * 80)
-        log(f"Total Order : {summary['total']}")
-        log(f"Uploaded    : {summary['uploaded']}")
-        log(f"Waiting     : {summary['waiting']}")
-        log(f"Skip        : {summary['skip']}")
-        log(f"Error       : {summary['error']}")
-
-    return summary
+        self.page.wait_for_timeout(2000)
+        self.log(f"📄 Pindah ke halaman {page+1}")
