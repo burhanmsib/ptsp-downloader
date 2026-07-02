@@ -203,12 +203,18 @@ def run_backup(
 
     finally:
 
-    if client:
-
-        client.close()
-
-        log("🔒 Browser ditutup")
-
+        if client is not None:
+    
+            try:
+    
+                client.close()
+    
+                log("🔒 Browser ditutup")
+    
+            except Exception:
+    
+                pass
+    
         log("")
         log("=" * 80)
         log("RINGKASAN")
@@ -218,15 +224,15 @@ def run_backup(
         log(f"Waiting     : {summary['waiting']}")
         log(f"Skip        : {summary['skip']}")
         log(f"Error       : {summary['error']}")
-
-    if summary["error"] == 0:
-
-    log("")
-    log("🎉 Backup selesai tanpa error")
-
-    else:
     
-        log("")
-        log("⚠ Backup selesai dengan beberapa error")
+        if summary["error"] == 0:
+    
+            log("")
+            log("🎉 Backup selesai tanpa error")
+    
+        else:
+    
+            log("")
+            log("⚠ Backup selesai dengan beberapa error")
 
     return summary
