@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.pyc
+
+# Credentials
+credentials/*
+!credentials/.gitkeep
+
+# Cache
+cache/
+
+# Download
+downloads/
+
+# Logs
+logs/
+
+# VS Code
+.vscode/
+
+# Environment
+.env
+
