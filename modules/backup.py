@@ -1,7 +1,5 @@
 from datetime import datetime
 import os
-
-from modules.client import PTSPClient
 from modules.download import PDFDownloader
 from modules.sheets import SheetManager
 from modules.drive import DriveManager
