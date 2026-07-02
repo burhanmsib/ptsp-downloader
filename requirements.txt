@@ -1,5 +1,5 @@
 streamlit
-playwright
+playwright==1.55.0
 gspread
 google-api-python-client
 google-auth
