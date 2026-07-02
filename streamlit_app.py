@@ -1,3 +1,18 @@
+import os
+import subprocess
+
+PLAYWRIGHT_PATH = os.path.expanduser("~/.cache/ms-playwright")
+
+if not os.path.exists(PLAYWRIGHT_PATH):
+    subprocess.run(
+        ["playwright", "install", "chromium"],
+        check=False
+    )
+
+import streamlit as st
+from datetime import datetime
+from modules.backup import run_backup
+
 import streamlit as st
 from datetime import datetime
 
