@@ -33,10 +33,13 @@ class PTSPClient:
         self.playwright = sync_playwright().start()
 
         self.browser = self.playwright.chromium.launch(
-            headless=HEADLESS,
-            slow_mo=SLOW_MO
+            headless=True,
+            args=[
+                "--disable-dev-shm-usage",
+                "--no-sandbox",
+                "--disable-setuid-sandbox"
+            ]
         )
-
         self.context = self.browser.new_context(
             accept_downloads=True
         )
