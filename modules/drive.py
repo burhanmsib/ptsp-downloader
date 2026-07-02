@@ -1,9 +1,8 @@
 import os
+import streamlit as st
 from datetime import datetime
 
-from google.oauth2.credentials import Credentials
-from google.auth.transport.requests import Request
-from google_auth_oauthlib.flow import InstalledAppFlow
+from google.oauth2.service_account import Credentials
 
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
@@ -16,87 +15,63 @@ class DriveManager:
     def __init__(self, log=print):
 
         self.log = log
-
+    
         self.folder_cache = {}
-
+    
+        self.log("☁ Menghubungkan Google Drive...")
+    
         scope = [
             "https://www.googleapis.com/auth/drive"
         ]
-
-        creds = None
-
-        self.log("☁ Menghubungkan Google Drive...")
-
-        # =====================================
-        # Load token
-        # =====================================
-
-        if os.path.exists(TOKEN_FILE):
-
-            try:
-
-                creds = Credentials.from_authorized_user_file(
-                    TOKEN_FILE,
-                    scope
-                )
-
-                self.log("✅ Token OAuth ditemukan")
-
-            except Exception:
-
-                creds = None
-
-        # =====================================
-        # Token tidak valid
-        # =====================================
-
-        if not creds or not creds.valid:
-
-            if creds and creds.expired and creds.refresh_token:
-
-                try:
-
-                    self.log("🔄 Refresh OAuth Token...")
-
-                    creds.refresh(Request())
-
-                    self.log("✅ Token berhasil diperbarui")
-
-                except Exception:
-
-                    self.log("⚠ Token sudah tidak berlaku")
-
-                    creds = None
-
-            if creds is None:
-
-                if os.path.exists(TOKEN_FILE):
-
-                    os.remove(TOKEN_FILE)
-
-                self.log("=" * 80)
-                self.log("LOGIN GOOGLE")
-                self.log("=" * 80)
-
-                flow = InstalledAppFlow.from_client_secrets_file(
-                    OAUTH_FILE,
-                    scope
-                )
-
-                creds = flow.run_local_server(port=0)
-
-            with open(TOKEN_FILE, "w") as token:
-
-                token.write(
-                    creds.to_json()
-                )
-
-        self.service = build(
-            "drive",
-            "v3",
-            credentials=creds
+    
+        creds = Credentials.from_service_account_info(
+    
+            st.secrets["gcp_service_account"],
+    
+            scopes=scope
+    
         )
+    
+        self.service = build(
+    
+            "drive",
+    
+            "v3",
+    
+            credentials=creds
+    
+        )
+    
+        self.log("✅ Google Drive berhasil terkoneksi")
 
+        # =====================================
+        # Service Account (Streamlit Cloud)
+        # =====================================
+        
+        creds = Credentials.from_service_account_info(
+        
+            st.secrets["gcp_service_account"],
+        
+            scopes=scope
+        
+        )
+        
+        self.log("✅ Service Account berhasil dimuat")
+
+        # =====================================
+        # Google Drive API
+        # =====================================
+        
+        self.service = build(
+        
+            "drive",
+        
+            "v3",
+        
+            credentials=creds
+        
+        )
+        
         self.log("✅ Google Drive berhasil terkoneksi")
 
     # =====================================================
@@ -248,10 +223,12 @@ class DriveManager:
         self.log(f"📅 Bulan : {bulan}")
 
         folder_tahun = self.get_folder(
-            tahun,
-            DRIVE_PARENT_FOLDER_ID
-        )
 
+            tahun,
+        
+            st.secrets["DRIVE_PARENT_FOLDER_ID"]
+        
+        )
         folder_bulan = self.get_folder(
             bulan,
             folder_tahun
@@ -275,7 +252,7 @@ class DriveManager:
             media = MediaFileUpload(
                 filepath,
                 mimetype="application/pdf",
-                resumable=True
+                resumable=False
             )
 
             metadata = {
