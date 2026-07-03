@@ -79,7 +79,9 @@ class DriveManager:
 
         result = self.service.files().list(
             q=query,
-            fields="files(id,name)"
+            fields="files(id,name)",
+            supportsAllDrives=True,
+            includeItemsFromAllDrives=True
         ).execute()
 
         folders = result.get("files", [])
@@ -109,11 +111,9 @@ class DriveManager:
         }
 
         folder = self.service.files().create(
-
             body=metadata,
-
-            fields="id"
-
+            fields="id",
+            supportsAllDrives=True
         ).execute()
 
         self.log("✅ Folder berhasil dibuat")
@@ -158,11 +158,10 @@ class DriveManager:
         )
 
         result = self.service.files().list(
-
             q=query,
-
-            fields="files(id,name)"
-
+            fields="files(id,name)",
+            supportsAllDrives=True,
+            includeItemsFromAllDrives=True
         ).execute()
 
         files = result.get("files", [])
@@ -234,13 +233,10 @@ class DriveManager:
             }
 
             file = self.service.files().create(
-
                 body=metadata,
-
                 media_body=media,
-
-                fields="id"
-
+                fields="id",
+                supportsAllDrives=True
             ).execute()
 
             file_id = file["id"]
