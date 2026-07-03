@@ -24,21 +24,29 @@ class SheetManager:
         ]
 
         creds = Credentials.from_service_account_info(
-            st.secrets["google_sheet"],
+
+            st.secrets["gcp_service_account"],
+        
             scopes=scope
+        
         )
 
         client = gspread.authorize(creds)
 
-        self.sheet = client.open_by_key(
+        sheet_id = st.secrets["google_sheet"]["SHEET_ID"]
 
-            st.secrets["SHEET_ID"]
+        sheet_name = st.secrets["google_sheet"]["SHEET_NAME"]
+        
+        self.sheet = client.open_by_key(
+        
+            sheet_id
         
         ).worksheet(
         
-            st.secrets["SHEET_NAME"]
+            sheet_name
         
         )
+
         self.log("📊 Google Sheet berhasil terkoneksi")
 
         # =====================================
