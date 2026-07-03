@@ -98,6 +98,15 @@ class PTSPClient:
 
         # Tunggu tabel muncul
         self.page.wait_for_selector("#datatable")
+        self.page.wait_for_function("""
+        () => {
+            return (
+                typeof $ !== "undefined" &&
+                $.fn &&
+                $.fn.DataTable
+            );
+        }
+        """)
 
         self.log("✅ Halaman Order Terbayar terbuka")
 
