@@ -169,6 +169,40 @@ class PTSPClient:
         )
 
         return orders
+
+    def collect_all_orders(self, bulan):
+
+        self.search_month(bulan)
+    
+        all_orders = []
+    
+        page = 1
+    
+        while True:
+    
+            self.log("")
+            self.log("=" * 80)
+            self.log(f"Mengambil daftar order halaman {page}")
+            self.log("=" * 80)
+    
+            orders = self.get_orders()
+    
+            self.log(f"📄 Ditemukan {len(orders)} order")
+    
+            all_orders.extend(orders)
+    
+            if not self.goto_next_page():
+    
+                break
+    
+            page += 1
+    
+        self.log("")
+        self.log("=" * 80)
+        self.log(f"TOTAL ORDER TERKUMPUL : {len(all_orders)}")
+        self.log("=" * 80)
+    
+        return all_orders
     
     def open_detail(self, order):
 
@@ -231,19 +265,19 @@ class PTSPClient:
             "pdf_url": None
         }
     
-    # def search_month(self, bulan):
+    def search_month(self, bulan):
     
-    #     self.log(f"📅 Mencari order bulan {bulan}")
+        self.log(f"📅 Mencari order bulan {bulan}")
     
-    #     search = self.page.locator('input[type="search"]')
+        search = self.page.locator('input[type="search"]')
     
-    #     search.wait_for()
+        search.wait_for()
     
-    #     search.fill("")
+        search.fill("")
     
-    #     search.fill(bulan)
+        search.fill(bulan)
     
-    #     self.page.wait_for_timeout(3000)
+        self.page.wait_for_timeout(3000)
 
     # def get_total_pages(self):
 
@@ -277,18 +311,26 @@ class PTSPClient:
     
     #     self.log(f"📄 Pindah ke halaman {page+1}")
 
-    def goto_next_page(self):
-    
-        next_btn = self.page.locator("ul.pagination li:last-child")
-    
-        cls = next_btn.get_attribute("class") or ""
-    
-        if "disabled" in cls:
-    
-            return False
-    
-        next_btn.click()
-    
-        self.page.wait_for_timeout(3000)
-    
-        return True
+   def goto_next_page(self):
+
+    next_btn = self.page.locator("li.next, li.paginate_button.next")
+
+    if next_btn.count() == 0:
+
+        return False
+
+    cls = next_btn.first.get_attribute("class") or ""
+
+    if "disabled" in cls:
+
+        return False
+
+    self.log("➡ Pindah ke halaman berikutnya")
+
+    next_btn.first.click()
+
+    self.page.wait_for_load_state("networkidle")
+
+    self.page.wait_for_timeout(2000)
+
+    return True
