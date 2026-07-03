@@ -1,13 +1,13 @@
 import os
-import streamlit as st
 from datetime import datetime
 
-from google.oauth2.service_account import Credentials
+import streamlit as st
+
+from google.oauth2.credentials import Credentials
+from google.auth.transport.requests import Request
 
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
-
-# from config import *
 
 
 class DriveManager:
@@ -15,37 +15,55 @@ class DriveManager:
     def __init__(self, log=print):
 
         self.log = log
-    
         self.folder_cache = {}
-    
+
         self.log("☁ Menghubungkan Google Drive...")
-    
+
         scope = [
-            "https://www.googleapis.com/auth/drive"
+            "https://www.googleapis.com/auth/drive",
+            "https://www.googleapis.com/auth/spreadsheets"
         ]
-    
-        creds = Credentials.from_service_account_info(
-    
-            st.secrets["gcp_service_account"],
-    
+
+        oauth = st.secrets["oauth"]
+
+        self.creds = Credentials(
+
+            token=oauth["token"],
+
+            refresh_token=oauth["refresh_token"],
+
+            token_uri=oauth["token_uri"],
+
+            client_id=oauth["client_id"],
+
+            client_secret=oauth["client_secret"],
+
             scopes=scope
-    
+
         )
-    
+
+        if not self.creds.valid:
+
+            self.log("🔄 Refresh OAuth Token...")
+
+            self.creds.refresh(Request())
+
+            self.log("✅ Token berhasil diperbarui")
+
         self.service = build(
-    
+
             "drive",
-    
+
             "v3",
-    
-            credentials=creds
-    
+
+            credentials=self.creds,
+
+            cache_discovery=False
+
         )
-    
+
         self.log("✅ Google Drive berhasil terkoneksi")
 
-    # =====================================================
-    # PARSE DATE
     # =====================================================
 
     def parse_date(self, tanggal):
@@ -57,7 +75,7 @@ class DriveManager:
                 "%Y-%m-%d %H:%M:%S"
             )
 
-        except ValueError:
+        except:
 
             return datetime.strptime(
                 tanggal,
@@ -65,23 +83,31 @@ class DriveManager:
             )
 
     # =====================================================
-    # FIND FOLDER
-    # =====================================================
 
     def find_folder(self, name, parent):
 
         query = (
+
             "mimeType='application/vnd.google-apps.folder' "
+
             f"and name='{name}' "
+
             f"and '{parent}' in parents "
+
             "and trashed=false"
+
         )
 
         result = self.service.files().list(
+
             q=query,
+
             fields="files(id,name)",
+
             supportsAllDrives=True,
+
             includeItemsFromAllDrives=True
+
         ).execute()
 
         folders = result.get("files", [])
@@ -92,8 +118,6 @@ class DriveManager:
 
         return None
 
-    # =====================================================
-    # CREATE FOLDER
     # =====================================================
 
     def create_folder(self, name, parent):
@@ -111,9 +135,13 @@ class DriveManager:
         }
 
         folder = self.service.files().create(
+
             body=metadata,
+
             fields="id",
+
             supportsAllDrives=True
+
         ).execute()
 
         self.log("✅ Folder berhasil dibuat")
@@ -121,47 +149,49 @@ class DriveManager:
         return folder["id"]
 
     # =====================================================
-    # GET FOLDER
-    # =====================================================
 
     def get_folder(self, name, parent):
 
-        cache_key = f"{parent}_{name}"
+        key = f"{parent}_{name}"
 
-        if cache_key in self.folder_cache:
+        if key in self.folder_cache:
 
-            return self.folder_cache[cache_key]
+            return self.folder_cache[key]
 
-        folder_id = self.find_folder(name, parent)
+        folder = self.find_folder(name, parent)
 
-        if folder_id is None:
+        if folder is None:
 
-            folder_id = self.create_folder(
-                name,
-                parent
-            )
+            folder = self.create_folder(name, parent)
 
-        self.folder_cache[cache_key] = folder_id
+        self.folder_cache[key] = folder
 
-        return folder_id
+        return folder
 
-    # =====================================================
-    # FIND FILE
     # =====================================================
 
     def find_file(self, filename, parent):
 
         query = (
+
             f"name='{filename}' "
+
             f"and '{parent}' in parents "
+
             "and trashed=false"
+
         )
 
         result = self.service.files().list(
+
             q=query,
+
             fields="files(id,name)",
+
             supportsAllDrives=True,
+
             includeItemsFromAllDrives=True
+
         ).execute()
 
         files = result.get("files", [])
@@ -173,13 +203,13 @@ class DriveManager:
         return None
 
     # =====================================================
-    # UPLOAD
-    # =====================================================
 
     def upload(self, filepath, tanggal):
 
         self.log("=" * 80)
+
         self.log("☁ UPLOAD GOOGLE DRIVE")
+
         self.log("=" * 80)
 
         dt = self.parse_date(tanggal)
@@ -188,19 +218,22 @@ class DriveManager:
 
         bulan = dt.strftime("%Y-%m")
 
-        self.log(f"📅 Tahun : {tahun}")
-        self.log(f"📅 Bulan : {bulan}")
+        parent = st.secrets["google"]["drive_parent"]
 
         folder_tahun = self.get_folder(
 
             tahun,
-        
-            st.secrets["google_sheet"]["DRIVE_PARENT_FOLDER_ID"]
-        
+
+            parent
+
         )
+
         folder_bulan = self.get_folder(
+
             bulan,
+
             folder_tahun
+
         )
 
         filename = os.path.basename(filepath)
@@ -208,20 +241,27 @@ class DriveManager:
         self.log(f"📄 File : {filename}")
 
         file_id = self.find_file(
+
             filename,
+
             folder_bulan
+
         )
 
         if file_id:
 
-            self.log("⚠ File sudah ada di Google Drive")
+            self.log("⚠ File sudah ada")
 
         else:
 
             media = MediaFileUpload(
+
                 filepath,
+
                 mimetype="application/pdf",
+
                 resumable=False
+
             )
 
             metadata = {
@@ -233,18 +273,19 @@ class DriveManager:
             }
 
             file = self.service.files().create(
+
                 body=metadata,
+
                 media_body=media,
+
                 fields="id",
+
                 supportsAllDrives=True
+
             ).execute()
 
             file_id = file["id"]
 
             self.log("✅ Upload berhasil")
 
-        link = f"https://drive.google.com/file/d/{file_id}/view"
-
-        self.log(f"🔗 {link}")
-
-        return link
+        return f"https://drive.google.com/file/d/{file_id}/view"
