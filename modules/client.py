@@ -98,15 +98,19 @@ class PTSPClient:
 
         # Tunggu tabel muncul
         self.page.wait_for_selector("#datatable")
-        self.page.wait_for_function("""
-        () => {
-            return (
-                typeof $ !== "undefined" &&
-                $.fn &&
-                $.fn.DataTable
-            );
-        }
-        """)
+        # self.page.wait_for_function("""
+        # () => {
+        #     return (
+        #         typeof $ !== "undefined" &&
+        #         $.fn &&
+        #         $.fn.DataTable
+        #     );
+        # }
+        # """)
+
+        self.page.wait_for_selector("#datatable tbody tr")
+
+        self.page.wait_for_timeout(2000)
 
         self.log("✅ Halaman Order Terbayar terbuka")
 
@@ -164,6 +168,8 @@ class PTSPClient:
         }
         """)
 
+        orders = [o for o in orders if o["detail"]]
+
         self.log(
             f"📄 Jumlah order ditemukan : {len(orders)}"
         )
@@ -189,7 +195,16 @@ class PTSPClient:
     
             self.log(f"📄 Ditemukan {len(orders)} order")
     
-            all_orders.extend(orders)
+            # all_orders.extend(orders)
+
+            for order in orders:
+
+                if order["nomor"] not in [o["nomor"] for o in all_orders]:
+            
+                    all_orders.append(order)
+                    self.log(
+                        f"Total sementara : {len(all_orders)}"
+                    )
     
             if not self.goto_next_page():
     
@@ -218,7 +233,9 @@ class PTSPClient:
 
         self.page.wait_for_load_state("networkidle")
 
-        self.page.wait_for_timeout(3000)
+        self.page.wait_for_selector("body")
+
+        self.page.wait_for_timeout(1000)
 
         self.log()
 
@@ -242,7 +259,7 @@ class PTSPClient:
 
         # Cari langsung link upload/dokumen/*.pdf
         hasil = re.search(
-            r'https://ptsp\.bmkg\.go\.id/upload/dokumen/[^"]+\.pdf',
+            r'https://ptsp\.bmkg\.go\.id/upload/dokumen/[^\s"]+\.pdf',
             html
         )
 
@@ -311,26 +328,40 @@ class PTSPClient:
     
     #     self.log(f"📄 Pindah ke halaman {page+1}")
 
-   def goto_next_page(self):
-
-    next_btn = self.page.locator("li.next, li.paginate_button.next")
-
-    if next_btn.count() == 0:
-
-        return False
-
-    cls = next_btn.first.get_attribute("class") or ""
-
-    if "disabled" in cls:
-
-        return False
-
-    self.log("➡ Pindah ke halaman berikutnya")
-
-    next_btn.first.click()
-
-    self.page.wait_for_load_state("networkidle")
-
-    self.page.wait_for_timeout(2000)
-
-    return True
+      def goto_next_page(self):
+    
+        next_btn = self.page.locator(
+            "button[aria-label='Next'], li.next, li.paginate_button.next"
+        )
+    
+        if next_btn.count() == 0:
+    
+            return False
+    
+        try:
+    
+            disabled = (
+                next_btn.first.get_attribute("disabled")
+            )
+    
+            cls = next_btn.first.get_attribute("class") or ""
+    
+            if disabled is not None:
+    
+                return False
+    
+            if "disabled" in cls:
+    
+                return False
+    
+            next_btn.first.click()
+    
+            self.page.wait_for_load_state("networkidle")
+    
+            self.page.wait_for_timeout(2000)
+    
+            return True
+    
+        except Exception:
+    
+            return False
