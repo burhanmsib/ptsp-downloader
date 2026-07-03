@@ -286,9 +286,21 @@ class PTSPClient:
     
         self.log(f"📅 Mencari order bulan {bulan}")
     
-        search = self.page.locator('input[type="search"]')
+        # Ubah jumlah baris menjadi 100
+        length = self.page.locator("#dt-length-0")
     
-        search.wait_for()
+        length.wait_for()
+    
+        length.select_option("100")
+
+        value = length.input_value()
+        
+        self.log(f"📄 Entries per page : {value}")
+    
+        self.page.wait_for_timeout(1000)
+    
+        # Isi pencarian
+        search = self.page.locator('input[type="search"]')
     
         search.fill("")
     
@@ -330,24 +342,22 @@ class PTSPClient:
 
     def goto_next_page(self):
 
-        next_btn = self.page.locator(
-            "li.next, li.paginate_button.next"
-        )
-
+        next_btn = self.page.locator("li.next")
+    
         if next_btn.count() == 0:
             return False
-
+    
         cls = next_btn.first.get_attribute("class") or ""
-
+    
         if "disabled" in cls:
             return False
-
+    
         self.log("➡ Pindah ke halaman berikutnya")
-
+    
         next_btn.first.click()
-
+    
         self.page.wait_for_selector("#datatable tbody tr")
-
+    
         self.page.wait_for_timeout(2000)
-
+    
         return True
