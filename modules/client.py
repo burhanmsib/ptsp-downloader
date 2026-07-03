@@ -328,40 +328,26 @@ class PTSPClient:
     
     #     self.log(f"📄 Pindah ke halaman {page+1}")
 
-      def goto_next_page(self):
-    
+    def goto_next_page(self):
+
         next_btn = self.page.locator(
-            "button[aria-label='Next'], li.next, li.paginate_button.next"
+            "li.next, li.paginate_button.next"
         )
-    
+
         if next_btn.count() == 0:
-    
             return False
-    
-        try:
-    
-            disabled = (
-                next_btn.first.get_attribute("disabled")
-            )
-    
-            cls = next_btn.first.get_attribute("class") or ""
-    
-            if disabled is not None:
-    
-                return False
-    
-            if "disabled" in cls:
-    
-                return False
-    
-            next_btn.first.click()
-    
-            self.page.wait_for_load_state("networkidle")
-    
-            self.page.wait_for_timeout(2000)
-    
-            return True
-    
-        except Exception:
-    
+
+        cls = next_btn.first.get_attribute("class") or ""
+
+        if "disabled" in cls:
             return False
+
+        self.log("➡ Pindah ke halaman berikutnya")
+
+        next_btn.first.click()
+
+        self.page.wait_for_selector("#datatable tbody tr")
+
+        self.page.wait_for_timeout(2000)
+
+        return True
