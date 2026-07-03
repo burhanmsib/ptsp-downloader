@@ -18,7 +18,7 @@ def run_backup(
     log=print
 
 ):
-    client = None
+    # client = None
 
     client = PTSPClient(
     
@@ -79,13 +79,13 @@ def run_backup(
 
         log("✅ Google Drive terkoneksi")
 
-        client.search_month(bulan)
-
         log(f"📅 Bulan pencarian : {bulan}")
 
-        total_pages = client.get_total_pages()
-
-        log(f"📄 Total halaman : {total_pages}")
+        log("📋 Mengumpulkan seluruh order...")
+        
+        orders = client.collect_all_orders(bulan)
+        
+        log(f"📄 Total order ditemukan : {len(orders)}")
 
         for order in orders:
 
@@ -106,11 +106,15 @@ def run_backup(
         
                     continue
         
+                log(f"🌐 Membuka {order['detail']}")
+                
                 client.open_detail(order)
         
                 hasil = client.get_pdf_url()
         
-                if hasil["status"] == "WAITING":
+                if hasil["status"] == "READY" and not hasil["pdf_url"]:
+
+                    raise Exception("PDF URL kosong.")
         
                     sheet.insert(
                         order,
@@ -129,6 +133,10 @@ def run_backup(
                     order,
                     hasil["pdf_url"]
                 )
+
+                if not os.path.exists(file_pdf):
+
+                    raise Exception("File PDF tidak ditemukan setelah download.")
         
                 log("☁ Upload Google Drive...")
         
@@ -136,14 +144,24 @@ def run_backup(
                     file_pdf,
                     order["tanggal_permohonan"]
                 )
+
+                if not drive_link:
+
+                    raise Exception("Upload Google Drive gagal.")
         
                 sheet.insert(
                     order,
                     "UPLOADED"
                 )
-        
+                
                 row = sheet.find_order(order["nomor"])
-        
+                
+                if row is None:
+                
+                    raise Exception(
+                        "Data gagal masuk Google Sheet."
+                    )
+                        
                 waktu = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         
                 sheet.update(
@@ -158,7 +176,9 @@ def run_backup(
         
                 summary["uploaded"] += 1
 
-                if summary["uploaded"] % 50 == 0:
+                log(f"✅ Upload selesai ({summary['uploaded']})")
+
+                if summary["uploaded"] > 0 and summary["uploaded"] % 50 == 0:
 
                     log("♻ Restart Browser")
                 
@@ -168,13 +188,15 @@ def run_backup(
                 
                     client.login()
                 
-                    client.open_orders()
+                    downloader = PDFDownloader(
                 
-                    client.search_month(bulan)
+                        client.context,
                 
-                    client.goto_page(page)
-        
-                log("✅ Selesai")
+                        log
+                
+                    )
+                
+                    log("✅ Browser berhasil direstart")
         
                 # client.page.go_back()
         
@@ -184,9 +206,11 @@ def run_backup(
         
                 try:
         
-                    os.remove(file_pdf)
-        
-                    log("🗑 File sementara dihapus")
+                    if os.path.exists(file_pdf):
+
+                        os.remove(file_pdf)
+                    
+                        log("🗑 File sementara dihapus")
         
                 except Exception:
         
