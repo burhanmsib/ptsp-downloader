@@ -146,7 +146,7 @@ class PTSPClient:
 
                     hp: td[7].innerText.trim(),
 
-                    detail: row.querySelector('td:last-child a').href
+                    detail: row.querySelector("a")?.href ?? ""
 
                 };
 
@@ -224,39 +224,115 @@ class PTSPClient:
     
     def search_month(self, bulan):
 
-        self.log(
-            f"📅 Mencari order bulan {bulan}"
-        )
-        self.page.evaluate(f"""
-        () => {{
-            let table = $('#datatable').DataTable();
-
-            table.search('{bulan}');
-            table.page.len(100).draw();
-        }}
+        self.current_month = bulan
+    
+        self.log("=" * 80)
+        self.log(f"📅 Mencari order bulan {bulan}")
+        self.log("=" * 80)
+    
+        self.page.wait_for_selector("#datatable")
+    
+        self.page.wait_for_function("""
+        () => {
+            return (
+                typeof $ !== "undefined" &&
+                $.fn &&
+                $.fn.DataTable
+            );
+        }
         """)
-
+    
+        self.page.evaluate(
+            """
+            (bulan) => {
+    
+                let table = $('#datatable').DataTable();
+    
+                table.search("");
+    
+                table.columns().search("");
+    
+                table.search(bulan);
+    
+                table.page.len(100);
+    
+                table.draw();
+    
+            }
+            """,
+            bulan
+        )
+    
         self.page.wait_for_timeout(3000)
+    
+        info = self.page.evaluate("""
+        () => $('#datatable').DataTable().page.info()
+        """)
+    
+        self.log(f"📊 Info halaman : {info}")
 
     def get_total_pages(self):
 
+        self.page.wait_for_function("""
+        () => {
+            return (
+                typeof $ !== "undefined" &&
+                $.fn &&
+                $.fn.DataTable
+            );
+        }
+        """)
+    
         info = self.page.evaluate("""
         () => $('#datatable').DataTable().page.info()
         """)
     
         self.log(f"📊 Info halaman : {info}")
     
-        self.log(f"📄 Total halaman : {info['pages']}")
-    
         return info["pages"]
     
     def goto_page(self, page):
 
-        self.page.evaluate(f"""
-        () => {{
-            $('#datatable').DataTable().page({page}).draw(false);
-        }}
+        # Kalau masih di halaman detail
+        if "order_terbayar" not in self.page.url:
+    
+            self.log("↩ Kembali ke halaman Order")
+    
+            self.page.goto(ORDER_URL)
+    
+            self.page.wait_for_load_state("networkidle")
+    
+            self.page.wait_for_selector("#datatable")
+    
+            self.page.wait_for_timeout(3000)
+    
+            self.search_month(self.current_month)
+    
+        self.page.wait_for_function("""
+        () => {
+            return (
+                typeof $ !== "undefined" &&
+                $.fn &&
+                $.fn.DataTable
+            );
+        }
         """)
-
-        self.page.wait_for_timeout(2000)
+    
+        self.page.evaluate(
+            """
+            (page) => {
+    
+                let table = $('#datatable').DataTable();
+    
+                table.page(page);
+    
+                table.draw(false);
+    
+            }
+            """,
+            page
+        )
+    
+        self.page.wait_for_timeout(3000)
+    
         self.log(f"📄 Pindah ke halaman {page+1}")
