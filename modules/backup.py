@@ -157,6 +157,22 @@ def run_backup(
                 )
         
                 summary["uploaded"] += 1
+
+                if summary["uploaded"] % 50 == 0:
+
+                    log("♻ Restart Browser")
+                
+                    client.close()
+                
+                    client.start()
+                
+                    client.login()
+                
+                    client.open_orders()
+                
+                    client.search_month(bulan)
+                
+                    client.goto_page(page)
         
                 log("✅ Selesai")
         
