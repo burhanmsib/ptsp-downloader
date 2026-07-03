@@ -231,51 +231,51 @@ class PTSPClient:
             "pdf_url": None
         }
     
-    def search_month(self, bulan):
+    # def search_month(self, bulan):
     
-        self.log(f"📅 Mencari order bulan {bulan}")
+    #     self.log(f"📅 Mencari order bulan {bulan}")
     
-        search = self.page.locator('input[type="search"]')
+    #     search = self.page.locator('input[type="search"]')
     
-        search.wait_for()
+    #     search.wait_for()
     
-        search.fill("")
+    #     search.fill("")
     
-        search.fill(bulan)
+    #     search.fill(bulan)
     
-        self.page.wait_for_timeout(3000)
+    #     self.page.wait_for_timeout(3000)
 
-    def get_total_pages(self):
+    # def get_total_pages(self):
 
-        self.page.wait_for_selector("ul.pagination")
+    #     self.page.wait_for_selector("ul.pagination")
     
-        pages = self.page.locator("ul.pagination li")
+    #     pages = self.page.locator("ul.pagination li")
     
-        total = pages.count()
+    #     total = pages.count()
     
-        # Previous + angka + Next
-        if total <= 2:
-            total_page = 1
-        else:
-            total_page = total - 2
+    #     # Previous + angka + Next
+    #     if total <= 2:
+    #         total_page = 1
+    #     else:
+    #         total_page = total - 2
     
-        self.log(f"📄 Total halaman : {total_page}")
+    #     self.log(f"📄 Total halaman : {total_page}")
     
-        return total_page
+    #     return total_page
     
-    def goto_page(self, page):
+    # def goto_page(self, page):
 
-        if page == 0:
+    #     if page == 0:
     
-            self.log("📄 Halaman pertama")
+    #         self.log("📄 Halaman pertama")
     
-            return
+    #         return
     
-        self.page.locator("ul.pagination li").nth(page + 1).click()
+    #     self.page.locator("ul.pagination li").nth(page + 1).click()
     
-        self.page.wait_for_timeout(3000)
+    #     self.page.wait_for_timeout(3000)
     
-        self.log(f"📄 Pindah ke halaman {page+1}")
+    #     self.log(f"📄 Pindah ke halaman {page+1}")
 
     def goto_next_page(self):
     
