@@ -232,116 +232,63 @@ class PTSPClient:
         }
     
     def search_month(self, bulan):
-
-        self.current_month = bulan
     
-        self.log("=" * 80)
         self.log(f"📅 Mencari order bulan {bulan}")
-        self.log("=" * 80)
     
-        self.page.wait_for_selector("#datatable")
+        search = self.page.locator('input[type="search"]')
     
-        self.page.wait_for_function("""
-        () => {
-            return (
-                typeof $ !== "undefined" &&
-                $.fn &&
-                $.fn.DataTable
-            );
-        }
-        """)
+        search.wait_for()
     
-        self.page.evaluate(
-            """
-            (bulan) => {
+        search.fill("")
     
-                let table = $('#datatable').DataTable();
-    
-                table.search("");
-    
-                table.columns().search("");
-    
-                table.search(bulan);
-    
-                table.page.len(100);
-    
-                table.draw();
-    
-            }
-            """,
-            bulan
-        )
+        search.fill(bulan)
     
         self.page.wait_for_timeout(3000)
-    
-        info = self.page.evaluate("""
-        () => $('#datatable').DataTable().page.info()
-        """)
-    
-        self.log(f"📊 Info halaman : {info}")
 
     def get_total_pages(self):
 
-        self.page.wait_for_function("""
-        () => {
-            return (
-                typeof $ !== "undefined" &&
-                $.fn &&
-                $.fn.DataTable
-            );
-        }
-        """)
+        self.page.wait_for_selector("ul.pagination")
     
-        info = self.page.evaluate("""
-        () => $('#datatable').DataTable().page.info()
-        """)
+        pages = self.page.locator("ul.pagination li")
     
-        self.log(f"📊 Info halaman : {info}")
+        total = pages.count()
     
-        return info["pages"]
+        # Previous + angka + Next
+        if total <= 2:
+            total_page = 1
+        else:
+            total_page = total - 2
+    
+        self.log(f"📄 Total halaman : {total_page}")
+    
+        return total_page
     
     def goto_page(self, page):
 
-        # Kalau masih di halaman detail
-        if "order_terbayar" not in self.page.url:
+        if page == 0:
     
-            self.log("↩ Kembali ke halaman Order")
+            self.log("📄 Halaman pertama")
     
-            self.page.goto(ORDER_URL)
+            return
     
-            self.page.wait_for_load_state("networkidle")
-    
-            self.page.wait_for_selector("#datatable")
-    
-            self.page.wait_for_timeout(3000)
-    
-            self.search_month(self.current_month)
-    
-        self.page.wait_for_function("""
-        () => {
-            return (
-                typeof $ !== "undefined" &&
-                $.fn &&
-                $.fn.DataTable
-            );
-        }
-        """)
-    
-        self.page.evaluate(
-            """
-            (page) => {
-    
-                let table = $('#datatable').DataTable();
-    
-                table.page(page);
-    
-                table.draw(false);
-    
-            }
-            """,
-            page
-        )
+        self.page.locator("ul.pagination li").nth(page + 1).click()
     
         self.page.wait_for_timeout(3000)
     
         self.log(f"📄 Pindah ke halaman {page+1}")
+
+    def goto_next_page(self):
+    
+        next_btn = self.page.locator("ul.pagination li:last-child")
+    
+        cls = next_btn.get_attribute("class") or ""
+    
+        if "disabled" in cls:
+    
+            return False
+    
+        next_btn.click()
+    
+        self.page.wait_for_timeout(3000)
+    
+        return True
