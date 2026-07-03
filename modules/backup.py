@@ -160,11 +160,11 @@ def run_backup(
         
                 log("✅ Selesai")
         
-                client.page.go_back()
+                # client.page.go_back()
         
-                client.page.wait_for_load_state("networkidle")
+                # client.page.wait_for_load_state("networkidle")
         
-                client.page.wait_for_timeout(1000)
+                # client.page.wait_for_timeout(1000)
         
                 try:
         
