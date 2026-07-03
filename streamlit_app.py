@@ -11,13 +11,8 @@ if not os.path.exists(PLAYWRIGHT_PATH):
 
 import streamlit as st
 from datetime import datetime
-from modules.backup import run_backup
 
-import streamlit as st
-from datetime import datetime
-
-# from modules.backup import run_backup
-from modules.backup import run_backup
+from modules.backup import run_backup        
 
 
 # =====================================================
@@ -97,10 +92,18 @@ if st.button(
 
     logs = []
 
-    def log(text):
+    def log(*args):
 
+        try:
+    
+            text = " ".join(map(str, args))
+    
+        except Exception:
+    
+            text = str(args)
+    
         logs.append(text)
-
+    
         log_box.code(
             "\n".join(logs),
             language="text"
