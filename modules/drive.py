@@ -7,7 +7,7 @@ from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 
-from config import *
+# from config import *
 
 
 class DriveManager:
@@ -42,36 +42,6 @@ class DriveManager:
     
         )
     
-        self.log("✅ Google Drive berhasil terkoneksi")
-
-        # =====================================
-        # Service Account (Streamlit Cloud)
-        # =====================================
-        
-        creds = Credentials.from_service_account_info(
-        
-            st.secrets["gcp_service_account"],
-        
-            scopes=scope
-        
-        )
-        
-        self.log("✅ Service Account berhasil dimuat")
-
-        # =====================================
-        # Google Drive API
-        # =====================================
-        
-        self.service = build(
-        
-            "drive",
-        
-            "v3",
-        
-            credentials=creds
-        
-        )
-        
         self.log("✅ Google Drive berhasil terkoneksi")
 
     # =====================================================
@@ -226,7 +196,7 @@ class DriveManager:
 
             tahun,
         
-            st.secrets["DRIVE_PARENT_FOLDER_ID"]
+            st.secrets["google_sheet"]["DRIVE_PARENT_FOLDER_ID"]
         
         )
         folder_bulan = self.get_folder(
