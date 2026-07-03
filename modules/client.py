@@ -167,9 +167,9 @@ class PTSPClient:
 
         self.log("Membuka Detail")
 
-        self.log("Nomor :", order["nomor"])
+        self.log(f"Nomor : {order['nomor']}")
 
-        self.log("URL    :", order["detail"])
+        self.log(f"URL : {order['detail']}")
 
         self.page.goto(order["detail"])
 
@@ -179,7 +179,7 @@ class PTSPClient:
 
         self.log()
 
-        self.log("Judul :", self.page.title())
+        self.log(f"Judul : {self.page.title()}")
 
         self.log("URL setelah dibuka :")
 
@@ -243,9 +243,11 @@ class PTSPClient:
         info = self.page.evaluate("""
         () => $('#datatable').DataTable().page.info()
         """)
-
-        self.log(info)
-
+    
+        self.log(f"📊 Info halaman : {info}")
+    
+        self.log(f"📄 Total halaman : {info['pages']}")
+    
         return info["pages"]
     
     def goto_page(self, page):
