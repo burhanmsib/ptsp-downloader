@@ -1,12 +1,10 @@
 import gspread
-
-from google.oauth2.service_account import Credentials
+import streamlit as st
 
 from datetime import datetime
 
-from config import *
-
-import streamlit as st
+from google.oauth2.credentials import Credentials
+from google.auth.transport.requests import Request
 
 
 class SheetManager:
@@ -16,47 +14,52 @@ class SheetManager:
         self.log = log
 
         scope = [
-
             "https://www.googleapis.com/auth/spreadsheets",
-
             "https://www.googleapis.com/auth/drive"
-
         ]
 
-        creds = Credentials.from_service_account_info(
+        oauth = st.secrets["oauth"]
 
-            st.secrets["gcp_service_account"],
-        
+        self.creds = Credentials(
+
+            token=oauth["token"],
+
+            refresh_token=oauth["refresh_token"],
+
+            token_uri=oauth["token_uri"],
+
+            client_id=oauth["client_id"],
+
+            client_secret=oauth["client_secret"],
+
             scopes=scope
-        
+
         )
 
-        client = gspread.authorize(creds)
+        if not self.creds.valid:
 
-        sheet_id = st.secrets["google_sheet"]["SHEET_ID"]
+            self.log("🔄 Refresh OAuth Token...")
 
-        sheet_name = st.secrets["google_sheet"]["SHEET_NAME"]
-        
+            self.creds.refresh(Request())
+
+            self.log("✅ Token berhasil diperbarui")
+
+        client = gspread.authorize(self.creds)
+
         self.sheet = client.open_by_key(
-        
-            sheet_id
-        
+
+            st.secrets["google"]["sheet_id"]
+
         ).worksheet(
-        
-            sheet_name
-        
+
+            st.secrets["google"]["sheet_name"]
+
         )
 
         self.log("📊 Google Sheet berhasil terkoneksi")
 
-        # =====================================
-        # Cache seluruh data
-        # =====================================
-
         self.refresh_cache()
 
-    # =====================================================
-    # REFRESH CACHE
     # =====================================================
 
     def refresh_cache(self):
@@ -67,28 +70,18 @@ class SheetManager:
 
         self.cache = {}
 
-        for index, row in enumerate(
+        for index, row in enumerate(values[1:], start=2):
 
-            values[1:],
-
-            start=2
-
-        ):
-
-            if len(row) == 0:
-
+            if not row:
                 continue
 
             nomor = row[0].strip()
 
             if nomor:
-
                 self.cache[nomor] = index
 
         self.log(f"✅ Cache berhasil dimuat ({len(self.cache)} data)")
 
-    # =====================================================
-    # FIND ORDER
     # =====================================================
 
     def find_order(self, nomor):
@@ -96,13 +89,13 @@ class SheetManager:
         return self.cache.get(nomor)
 
     # =====================================================
-    # INSERT
-    # =====================================================
 
     def insert(self, order, status):
 
         self.log("=" * 80)
         self.log("📝 Menambahkan data ke Google Sheet")
+
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         row = [
 
@@ -116,21 +109,13 @@ class SheetManager:
 
             status,
 
-            datetime.now().strftime(
-
-                "%Y-%m-%d %H:%M:%S"
-
-            ),
+            now,
 
             "",
 
             "",
 
-            datetime.now().strftime(
-
-                "%Y-%m-%d %H:%M:%S"
-
-            )
+            now
 
         ]
 
@@ -145,41 +130,32 @@ class SheetManager:
         self.log("✅ Data berhasil ditambahkan")
 
     # =====================================================
-    # UPDATE
-    # =====================================================
 
     def update(self, row, **kwargs):
 
-        self.log("✏️ Memperbarui data Google Sheet")
+        self.log("✏ Memperbarui Google Sheet")
 
         data = self.sheet.row_values(row)
 
         while len(data) < 9:
-
             data.append("")
 
         if "nama_file" in kwargs:
-
             data[3] = kwargs["nama_file"]
 
         if "status" in kwargs:
-
             data[4] = kwargs["status"]
 
         if "waktu_download" in kwargs:
-
             data[5] = kwargs["waktu_download"]
 
         if "google_drive" in kwargs:
-
             data[6] = kwargs["google_drive"]
 
         if "pdf_url" in kwargs:
-
             data[7] = kwargs["pdf_url"]
 
         if "last_check" in kwargs:
-
             data[8] = kwargs["last_check"]
 
         self.sheet.update(
