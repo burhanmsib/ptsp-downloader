@@ -177,40 +177,71 @@ class PTSPClient:
         return orders
 
     def collect_all_orders(self, bulan):
-
+    
         self.search_month(bulan)
     
         all_orders = []
+        seen = set()
     
-        page = 1
+        current_page = 1
     
         while True:
     
             self.log("")
             self.log("=" * 80)
-            self.log(f"Mengambil daftar order halaman {page}")
+            self.log(f"📄 Mengambil halaman {current_page}")
             self.log("=" * 80)
+    
+            self.page.wait_for_selector("#datatable tbody tr")
     
             orders = self.get_orders()
     
-            self.log(f"📄 Ditemukan {len(orders)} order")
+            self.log(f"📑 Ditemukan {len(orders)} order")
     
-            # all_orders.extend(orders)
-
             for order in orders:
-
-                if order["nomor"] not in [o["nomor"] for o in all_orders]:
-            
-                    all_orders.append(order)
-                    self.log(
-                        f"Total sementara : {len(all_orders)}"
-                    )
     
-            if not self.goto_next_page():
+                nomor = order["nomor"]
+    
+                if nomor in seen:
+                    continue
+    
+                seen.add(nomor)
+                all_orders.append(order)
+    
+            self.log(f"📦 Total terkumpul : {len(all_orders)}")
+    
+            # -----------------------------
+            # Cari halaman berikutnya
+            # -----------------------------
+            next_page = current_page + 1
+    
+            next_locator = self.page.locator(
+                f"ul.pagination a.page-link[data-dt-idx='{next_page-1}']"
+            )
+    
+            if next_locator.count() == 0:
+    
+                self.log("✅ Sudah halaman terakhir")
     
                 break
     
-            page += 1
+            try:
+    
+                self.log(f"➡ Pindah ke halaman {next_page}")
+    
+                next_locator.first.click()
+    
+                self.page.wait_for_load_state("networkidle")
+    
+                self.page.wait_for_timeout(3000)
+    
+                current_page += 1
+    
+            except Exception as e:
+    
+                self.log(f"❌ Gagal pindah halaman : {e}")
+    
+                break
     
         self.log("")
         self.log("=" * 80)
@@ -286,25 +317,21 @@ class PTSPClient:
     
         self.log(f"📅 Mencari order bulan {bulan}")
     
-        # Ubah jumlah baris menjadi 100
-        length = self.page.locator("#dt-length-0")
+        search = self.page.locator("input[type='search']")
     
-        length.wait_for()
-    
-        length.select_option("100")
-
-        value = length.input_value()
-        
-        self.log(f"📄 Entries per page : {value}")
-    
-        self.page.wait_for_timeout(1000)
-    
-        # Isi pencarian
-        search = self.page.locator('input[type="search"]')
+        search.wait_for()
     
         search.fill("")
     
         search.fill(bulan)
+    
+        self.page.wait_for_timeout(2000)
+    
+        # ubah menjadi 100 data per halaman
+        self.page.select_option(
+            "select[id^='dt-length-']",
+            "100"
+        )
     
         self.page.wait_for_timeout(3000)
 
@@ -340,24 +367,24 @@ class PTSPClient:
     
     #     self.log(f"📄 Pindah ke halaman {page+1}")
 
-    def goto_next_page(self):
+    # def goto_next_page(self):
 
-        next_btn = self.page.locator("li.next")
+    #     next_btn = self.page.locator("li.next")
     
-        if next_btn.count() == 0:
-            return False
+    #     if next_btn.count() == 0:
+    #         return False
     
-        cls = next_btn.first.get_attribute("class") or ""
+    #     cls = next_btn.first.get_attribute("class") or ""
     
-        if "disabled" in cls:
-            return False
+    #     if "disabled" in cls:
+    #         return False
     
-        self.log("➡ Pindah ke halaman berikutnya")
+    #     self.log("➡ Pindah ke halaman berikutnya")
     
-        next_btn.first.click()
+    #     next_btn.first.click()
     
-        self.page.wait_for_selector("#datatable tbody tr")
+    #     self.page.wait_for_selector("#datatable tbody tr")
     
-        self.page.wait_for_timeout(2000)
+    #     self.page.wait_for_timeout(2000)
     
-        return True
+    #     return True
