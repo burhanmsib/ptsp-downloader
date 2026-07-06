@@ -269,16 +269,20 @@ def run_backup(
                 
                 if status:
 
+                    persen = (summary["total"] / total_orders) * 100
+                
                     status.markdown(
                         f"""
-                ### 📦 Backup PTSP
+                ### 📦 Backup PTSP BMKG
                 
-                **Progress** : {summary['total']} / {total_orders}
+                **Progress : {summary['total']} / {total_orders} ({persen:.1f}%)**
                 
-                - ✅ Uploaded : **{summary['uploaded']}**
-                - ⌛ Waiting : **{summary['waiting']}**
-                - ⏭ Skip : **{summary['skip']}**
-                - ❌ Error : **{summary['error']}**
+                | Status | Jumlah |
+                |--------|-------:|
+                | ✅ Uploaded | **{summary['uploaded']}** |
+                | ⌛ Waiting | **{summary['waiting']}** |
+                | ⏭ Skip | **{summary['skip']}** |
+                | ❌ Error | **{summary['error']}** |
                 """
                     )
         
