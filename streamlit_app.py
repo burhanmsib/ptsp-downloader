@@ -116,15 +116,12 @@ if st.button(
         progress.progress(10)
 
         hasil = run_backup(
-
             bulan=bulan,
-
             username=username,
-
             password=password,
-
-            log=log
-
+            log=log,
+            progress=progress,
+            status=status
         )
 
         progress.progress(100)
