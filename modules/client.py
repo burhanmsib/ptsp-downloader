@@ -209,6 +209,18 @@ class PTSPClient:
                 all_orders.append(order)
     
             self.log(f"📦 Total terkumpul : {len(all_orders)}")
+
+            self.log("=== DEBUG PAGINATION ===")
+
+            pages = self.page.locator("ul.pagination a.page-link")
+            
+            self.log(f"Jumlah tombol pagination : {pages.count()}")
+            
+            for i in range(pages.count()):
+            
+                self.log(
+                    f"{i} -> {pages.nth(i).inner_text()}"
+                )
     
             # -----------------------------
             # Cari halaman berikutnya
