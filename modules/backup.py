@@ -8,15 +8,12 @@ from modules.drive import DriveManager
 
 
 def run_backup(
-
     bulan,
-
     username,
-
     password,
-
-    log=print
-
+    log=print,
+    progress=None,
+    status=None
 ):
     # client = None
 
@@ -84,6 +81,7 @@ def run_backup(
         log("📋 Mengumpulkan seluruh order...")
         
         orders = client.collect_all_orders(bulan)
+        total_orders = len(orders)
         
         log(f"📄 Total order ditemukan : {len(orders)}")
 
@@ -197,12 +195,20 @@ def run_backup(
                     )
                 
                     log("✅ Browser berhasil direstart")
-        
-                # client.page.go_back()
-        
-                # client.page.wait_for_load_state("networkidle")
-        
-                # client.page.wait_for_timeout(1000)
+
+                if progress:
+
+                    persen = summary["total"] / total_orders
+                
+                    progress.progress(persen)
+                
+                if status:
+                
+                    status.info(
+                
+                        f"Memproses {summary['total']} / {total_orders}"
+                
+                    )
         
                 try:
         
