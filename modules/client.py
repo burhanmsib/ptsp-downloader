@@ -325,24 +325,61 @@ class PTSPClient:
             "pdf_url": None
         }
     
+    # def search_month(self, bulan):
+    
+    #     self.log(f"📅 Mencari order bulan {bulan}")
+    
+    #     search = self.page.locator("input[type='search']")
+    
+    #     search.wait_for()
+    
+    #     search.fill("")
+    
+    #     search.fill(bulan)
+    
+    #     self.page.wait_for_timeout(2000)
+    
+    #     # ubah menjadi 100 data per halaman
+    #     self.page.select_option(
+    #         "select[id^='dt-length-']",
+    #         "100"
+    #     )
+    
+    #     self.page.wait_for_timeout(3000)
+
     def search_month(self, bulan):
+        self.log(f"📅 Mencari order berdasarkan Tanggal Pembayaran: {bulan}")
     
-        self.log(f"📅 Mencari order bulan {bulan}")
+        # Validasi format YYYY-MM
+        try:
+            datetime.strptime(bulan, "%Y-%m")
+        except ValueError:
+            raise ValueError(
+                "Format bulan harus YYYY-MM, contoh: 2026-09"
+            )
     
-        search = self.page.locator("input[type='search']")
+        # Filter khusus kolom Tanggal Pembayaran (indeks 4)
+        self.page.evaluate(
+            """
+            (bulan) => {
+                let table = $('#datatable').DataTable();
     
-        search.wait_for()
+                // Bersihkan pencarian sebelumnya
+                table.search('');
+                table.columns().search('');
     
-        search.fill("")
+                // Filter hanya kolom Tanggal Pembayaran
+                table.column(4).search(bulan);
     
-        search.fill(bulan)
-    
-        self.page.wait_for_timeout(2000)
-    
-        # ubah menjadi 100 data per halaman
-        self.page.select_option(
-            "select[id^='dt-length-']",
-            "100"
+                // Tampilkan 100 data per halaman
+                table.page.len(100).draw();
+            }
+            """,
+            bulan
         )
     
         self.page.wait_for_timeout(3000)
+    
+        self.log(
+            f"✅ Filter Tanggal Pembayaran berhasil diterapkan: {bulan}"
+        )
