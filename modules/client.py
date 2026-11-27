@@ -2,6 +2,7 @@ from playwright.sync_api import sync_playwright
 from datetime import datetime
 from config import *
 import re
+from modules.utils import file_extension
 
 
 class PTSPClient:
@@ -302,58 +303,73 @@ class PTSPClient:
 
     def get_pdf_url(self):
 
+        """
+        Cari link dokumen hasil (tombol "Dokumen" di kolom Download Data).
+        Semua jenis file diterima (pdf, rar, zip, docx, dll).
+        Status WAITING hanya jika belum ada dokumen sama sekali.
+        """
+
         self.log("=" * 80)
         self.log("Mengecek halaman detail...")
         self.log("=" * 80)
 
-        html = self.page.content()
+        # Link dari atribut href (bisa relatif), diubah jadi URL absolut
+        # Utamakan link di tabel DATA PRODUK (kolom "Download Data"),
+        # supaya tidak tertukar dengan "Dokumen Permohonan".
+        links = self.page.evaluate("""
+        () => {
+            const ambil = (root) => Array.from(root.querySelectorAll("a[href]"))
+                .map(a => a.href)
+                .filter(h => h.includes("/upload/dokumen/"));
 
-        # Cari langsung link upload/dokumen/*.pdf
-        hasil = re.search(
-            r'https://ptsp\.bmkg\.go\.id/upload/dokumen/[^\s"]+\.pdf',
-            html
-        )
+            const th = Array.from(document.querySelectorAll("th, td"))
+                .find(el => el.innerText.trim().toLowerCase() === "download data");
 
-        if hasil:
+            const tabel = th ? th.closest("table") : null;
 
-            pdf_url = hasil.group(0)
+            if (tabel) {
+                return ambil(tabel);
+            }
 
-            self.log("✅ PDF ditemukan")
+            return ambil(document);
+        }
+        """)
+
+        if not links:
+
+            # Cadangan: cari di HTML mentah
+            links = re.findall(
+                r'https?://ptsp\.bmkg\.go\.id/upload/dokumen/[^\s"\'<>]+',
+                self.page.content()
+            )
+
+        links = [
+            l for l in links
+            if re.search(r"/upload/dokumen/[^/?#]+\.[A-Za-z0-9]{2,5}($|[?#])", l)
+        ]
+
+        if links:
+
+            pdf_url = links[0]
+
+            ext = file_extension(pdf_url)
+
+            self.log(f"✅ Dokumen ditemukan ({ext.upper() or '?'})")
             self.log(pdf_url)
 
             return {
                 "status": "READY",
-                "pdf_url": pdf_url
+                "pdf_url": pdf_url,
+                "ext": ext
             }
 
-        self.log("⌛ Belum ada file PDF")
+        self.log("⌛ Belum ada dokumen")
 
         return {
             "status": "WAITING",
-            "pdf_url": None
+            "pdf_url": None,
+            "ext": ""
         }
-    
-    # def search_month(self, bulan):
-    
-    #     self.log(f"📅 Mencari order bulan {bulan}")
-    
-    #     search = self.page.locator("input[type='search']")
-    
-    #     search.wait_for()
-    
-    #     search.fill("")
-    
-    #     search.fill(bulan)
-    
-    #     self.page.wait_for_timeout(2000)
-    
-    #     # ubah menjadi 100 data per halaman
-    #     self.page.select_option(
-    #         "select[id^='dt-length-']",
-    #         "100"
-    #     )
-    
-    #     self.page.wait_for_timeout(3000)
 
     def search_month(self, bulan):
 
