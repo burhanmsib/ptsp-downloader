@@ -144,7 +144,7 @@ class PTSPClient:
 
                 return {
 
-                    id: row.querySelector(".selectedrow").value,
+                    id: row.querySelector(".selectedrow")?.value ?? "",
 
                     nomor: td[1].innerText.trim(),
 
@@ -184,6 +184,7 @@ class PTSPClient:
     
         all_orders = []
         seen = set()
+        dilewati = 0
     
         current_page = 1
     
@@ -197,33 +198,32 @@ class PTSPClient:
             self.page.wait_for_selector("#datatable tbody tr")
     
             orders = self.get_orders()
-    
-            self.log(f"📑 Ditemukan {len(orders)} order")
-    
+
+            cocok = 0
+
             for order in orders:
-    
+
                 nomor = order["nomor"]
-    
+
                 if nomor in seen:
                     continue
-    
+
                 seen.add(nomor)
+
+                # Validasi per baris: hanya order yang bulan
+                # Tanggal Pembayaran-nya sama dengan bulan yang dipilih
+                if order.get("tanggal_pembayaran", "")[:7] != bulan:
+                    dilewati += 1
+                    continue
+
+                cocok += 1
                 all_orders.append(order)
-    
-            self.log(f"📦 Total terkumpul : {len(all_orders)}")
 
-            self.log("=== DEBUG PAGINATION ===")
+            self.log(
+                f"📑 {cocok} order dibayar {bulan} "
+                f"(dari {len(orders)} baris di halaman ini)"
+            )
 
-            pages = self.page.locator("ul.pagination a.page-link")
-            
-            self.log(f"Jumlah tombol pagination : {pages.count()}")
-            
-            for i in range(pages.count()):
-            
-                self.log(
-                    f"{i} -> {pages.nth(i).inner_text()}"
-                )
-    
             # -----------------------------
             # Cari halaman berikutnya
             # -----------------------------
@@ -257,34 +257,19 @@ class PTSPClient:
     
                 break
     
-        self.log("")
-        self.log("=" * 80)
-        self.log(f"TOTAL ORDER TERKUMPUL : {len(all_orders)}")
-        self.log("=" * 80)
-
-        # Validasi per baris: hanya ambil order yang bulan
-        # Tanggal Pembayaran-nya sama dengan bulan yang dipilih.
-        # Pencarian di website tidak bisa diandalkan karena bisa
-        # ikut mencocokkan kolom lain (misal Tanggal Permohonan).
-        filtered = [
-            o for o in all_orders
-            if o.get("tanggal_pembayaran", "")[:7] == bulan
-        ]
-
-        dibuang = len(all_orders) - len(filtered)
-
-        if dibuang:
+        if dilewati:
             self.log(
-                f"🚫 {dibuang} order dilewati karena Tanggal Pembayaran "
+                f"🚫 {dilewati} order dilewati karena Tanggal Pembayaran "
                 f"bukan bulan {bulan}"
             )
 
-        self.log(
-            f"✅ Order dengan Tanggal Pembayaran {bulan} : {len(filtered)}"
-        )
+        self.log("")
+        self.log("=" * 80)
+        self.log(f"ORDER DENGAN TANGGAL PEMBAYARAN {bulan} : {len(all_orders)}")
+        self.log("=" * 80)
 
-        return filtered
-    
+        return all_orders
+
     def open_detail(self, order):
 
         self.log("=" * 80)
@@ -371,8 +356,9 @@ class PTSPClient:
     #     self.page.wait_for_timeout(3000)
 
     def search_month(self, bulan):
-        self.log(f"📅 Mencari order berdasarkan Tanggal Pembayaran: {bulan}")
-    
+
+        self.log(f"📅 Mencari order bulan {bulan}")
+
         # Validasi format YYYY-MM
         try:
             datetime.strptime(bulan, "%Y-%m")
@@ -380,29 +366,46 @@ class PTSPClient:
             raise ValueError(
                 "Format bulan harus YYYY-MM, contoh: 2026-09"
             )
-    
-        # Filter khusus kolom Tanggal Pembayaran (indeks 4)
-        self.page.evaluate(
-            """
-            (bulan) => {
-                let table = $('#datatable').DataTable();
-    
-                // Bersihkan pencarian sebelumnya
-                table.search('');
-                table.columns().search('');
-    
-                // Filter hanya kolom Tanggal Pembayaran
-                table.column(4).search(bulan);
-    
-                // Tampilkan 100 data per halaman
-                table.page.len(100).draw();
-            }
-            """,
-            bulan
-        )
-    
+
+        # Pakai kotak "Search" bawaan tabel (sama seperti mengetik
+        # manual di website). Ini mempersempit hasil ke baris yang
+        # mengandung bulan tsb; penyaringan akhir berdasarkan
+        # Tanggal Pembayaran tetap dilakukan per baris di
+        # collect_all_orders.
+        try:
+
+            self.page.evaluate(
+                """
+                (bulan) => {
+                    const table = $('#datatable').DataTable();
+                    table.columns().search('');
+                    table.search(bulan);
+                    table.page.len(100).draw();
+                }
+                """,
+                bulan
+            )
+
+        except Exception as e:
+
+            self.log(f"⚠ Filter lewat DataTable gagal ({e}), pakai kotak Search")
+
+            search = self.page.locator("input[type='search']").first
+
+            search.fill(bulan)
+
+            search.press("Enter")
+
+            try:
+                self.page.select_option(
+                    "select[id^='dt-length-'], select[name$='_length']",
+                    "100"
+                )
+            except Exception:
+                pass
+
+        self.page.wait_for_load_state("networkidle")
+
         self.page.wait_for_timeout(3000)
-    
-        self.log(
-            f"✅ Filter Tanggal Pembayaran berhasil diterapkan: {bulan}"
-        )
+
+        self.log(f"✅ Pencarian {bulan} diterapkan")

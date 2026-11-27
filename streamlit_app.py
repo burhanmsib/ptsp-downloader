@@ -126,7 +126,7 @@ if st.button(
 
         progress.progress(100)
 
-        status.success("Backup selesai")
+        status.success(f"Backup bulan {bulan} selesai")
 
         st.divider()
 
@@ -158,6 +158,46 @@ if st.button(
             "Error",
             hasil["error"]
         )
+
+        bulan_run = hasil.get("bulan", bulan)
+
+        if hasil["total"] == 0:
+
+            st.info(
+                f"Tidak ada order dengan Tanggal Pembayaran {bulan_run}."
+            )
+
+        elif hasil["waiting"] == 0 and hasil["error"] == 0:
+
+            st.success(
+                f"✅ Semua file bulan {bulan_run} sudah selesai dibackup "
+                f"({hasil['total']} order)."
+            )
+
+        if hasil.get("waiting_list"):
+
+            st.warning(
+                f"⌛ {hasil['waiting']} order bulan {bulan_run} masih WAITING "
+                "(file belum tersedia di PTSP). Jalankan lagi bulan "
+                f"{bulan_run} nanti untuk mem-backup-nya."
+            )
+
+            st.dataframe(
+                hasil["waiting_list"],
+                use_container_width=True
+            )
+
+        if hasil.get("error_list"):
+
+            st.error(
+                f"❌ {hasil['error']} order gagal diproses. "
+                "Jalankan lagi bulan yang sama untuk mencoba ulang."
+            )
+
+            st.dataframe(
+                hasil["error_list"],
+                use_container_width=True
+            )
 
     except Exception as e:
 

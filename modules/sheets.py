@@ -72,6 +72,8 @@ class SheetManager:
 
         self.status_cache = {}
 
+        self.drive_cache = {}
+
         for index, row in enumerate(values[1:], start=2):
 
             if not row:
@@ -83,6 +85,9 @@ class SheetManager:
                 self.cache[nomor] = index
                 self.status_cache[nomor] = (
                     row[4].strip().upper() if len(row) > 4 else ""
+                )
+                self.drive_cache[nomor] = (
+                    row[6].strip() if len(row) > 6 else ""
                 )
 
         self.log(f"✅ Cache berhasil dimuat ({len(self.cache)} data)")
@@ -98,6 +103,12 @@ class SheetManager:
     def get_status(self, nomor):
 
         return self.status_cache.get(nomor, "")
+
+    # =====================================================
+
+    def get_drive_link(self, nomor):
+
+        return self.drive_cache.get(nomor, "")
 
     # =====================================================
 
@@ -160,6 +171,9 @@ class SheetManager:
             data[4] = kwargs["status"]
             if data[0]:
                 self.status_cache[data[0].strip()] = kwargs["status"]
+
+        if "google_drive" in kwargs and data[0]:
+            self.drive_cache[data[0].strip()] = kwargs["google_drive"]
 
         if "waktu_download" in kwargs:
             data[5] = kwargs["waktu_download"]

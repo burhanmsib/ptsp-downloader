@@ -9,6 +9,7 @@ from google.auth.transport.requests import Request
 
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
+from googleapiclient.errors import HttpError
 
 
 class DriveManager:
@@ -197,6 +198,67 @@ class DriveManager:
             return files[0]["id"]
 
         return None
+
+    # =====================================================
+
+    def file_exists(self, drive_link, bulan=None):
+
+        """
+        True jika file dari link Drive masih ada, tidak di Trash, dan
+        (jika bulan diisi, format YYYY-MM) berada di folder bulan tsb.
+        """
+
+        hasil = re.search(r"/d/([\w-]+)", drive_link or "")
+
+        if not hasil:
+
+            return False
+
+        try:
+
+            info = self.service.files().get(
+
+                fileId=hasil.group(1),
+
+                fields="id,trashed,parents",
+
+                supportsAllDrives=True
+
+            ).execute()
+
+            if info.get("trashed", False):
+
+                return False
+
+            if bulan is None:
+
+                return True
+
+            for parent_id in info.get("parents", []):
+
+                parent = self.service.files().get(
+
+                    fileId=parent_id,
+
+                    fields="name,trashed",
+
+                    supportsAllDrives=True
+
+                ).execute()
+
+                if parent.get("name") == bulan and not parent.get("trashed"):
+
+                    return True
+
+            return False
+
+        except HttpError as e:
+
+            if e.resp.status == 404:
+
+                return False
+
+            raise
 
     # =====================================================
 
