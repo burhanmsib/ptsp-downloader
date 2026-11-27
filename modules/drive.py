@@ -1,3 +1,4 @@
+import re
 import os
 from datetime import datetime
 
@@ -68,19 +69,14 @@ class DriveManager:
 
     def parse_date(self, tanggal):
 
-        try:
+        # Ambil bagian YYYY-MM-DD saja, apa pun format jam/spasinya
+        hasil = re.search(r"\d{4}-\d{2}-\d{2}", tanggal or "")
 
-            return datetime.strptime(
-                tanggal,
-                "%Y-%m-%d %H:%M:%S"
-            )
+        if not hasil:
 
-        except:
+            raise ValueError(f"Format tanggal tidak dikenali: {tanggal!r}")
 
-            return datetime.strptime(
-                tanggal,
-                "%Y-%m-%d"
-            )
+        return datetime.strptime(hasil.group(0), "%Y-%m-%d")
 
     # =====================================================
 

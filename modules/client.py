@@ -150,9 +150,10 @@ class PTSPClient:
 
                     layanan: td[2].innerText.trim(),
 
-                    tanggal_permohonan: td[3].innerText.trim(),
+                    tanggal_permohonan: td[3].innerText.replace(/\\s+/g, " ").trim(),
 
-                    tanggal_jatuh_tempo: td[4].innerText.trim(),
+                    // Kolom ke-5 di tabel adalah "Tanggal Pembayaran"
+                    tanggal_pembayaran: td[4].innerText.replace(/\\s+/g, " ").trim(),
 
                     pemohon: td[5].innerText.trim(),
 
@@ -260,8 +261,29 @@ class PTSPClient:
         self.log("=" * 80)
         self.log(f"TOTAL ORDER TERKUMPUL : {len(all_orders)}")
         self.log("=" * 80)
-    
-        return all_orders
+
+        # Validasi per baris: hanya ambil order yang bulan
+        # Tanggal Pembayaran-nya sama dengan bulan yang dipilih.
+        # Pencarian di website tidak bisa diandalkan karena bisa
+        # ikut mencocokkan kolom lain (misal Tanggal Permohonan).
+        filtered = [
+            o for o in all_orders
+            if o.get("tanggal_pembayaran", "")[:7] == bulan
+        ]
+
+        dibuang = len(all_orders) - len(filtered)
+
+        if dibuang:
+            self.log(
+                f"🚫 {dibuang} order dilewati karena Tanggal Pembayaran "
+                f"bukan bulan {bulan}"
+            )
+
+        self.log(
+            f"✅ Order dengan Tanggal Pembayaran {bulan} : {len(filtered)}"
+        )
+
+        return filtered
     
     def open_detail(self, order):
 

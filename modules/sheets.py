@@ -70,6 +70,8 @@ class SheetManager:
 
         self.cache = {}
 
+        self.status_cache = {}
+
         for index, row in enumerate(values[1:], start=2):
 
             if not row:
@@ -79,6 +81,9 @@ class SheetManager:
 
             if nomor:
                 self.cache[nomor] = index
+                self.status_cache[nomor] = (
+                    row[4].strip().upper() if len(row) > 4 else ""
+                )
 
         self.log(f"✅ Cache berhasil dimuat ({len(self.cache)} data)")
 
@@ -87,6 +92,12 @@ class SheetManager:
     def find_order(self, nomor):
 
         return self.cache.get(nomor)
+
+    # =====================================================
+
+    def get_status(self, nomor):
+
+        return self.status_cache.get(nomor, "")
 
     # =====================================================
 
@@ -127,6 +138,8 @@ class SheetManager:
 
         )
 
+        self.status_cache[order["nomor"]] = status
+
         self.log("✅ Data berhasil ditambahkan")
 
     # =====================================================
@@ -145,6 +158,8 @@ class SheetManager:
 
         if "status" in kwargs:
             data[4] = kwargs["status"]
+            if data[0]:
+                self.status_cache[data[0].strip()] = kwargs["status"]
 
         if "waktu_download" in kwargs:
             data[5] = kwargs["waktu_download"]

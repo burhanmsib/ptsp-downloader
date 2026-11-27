@@ -88,7 +88,7 @@ def run_backup(
 
         if total_orders == 0:
 
-            log("⚠ Tidak ada data untuk bulan tersebut.")
+            log(f"⚠ Tidak ada order dengan Tanggal Pembayaran {bulan}.")
         
             return summary
         
@@ -103,15 +103,25 @@ def run_backup(
                 log("-" * 60)
                 log(f"Nomor : {order['nomor']}")
         
+                log(f"Tanggal Pembayaran : {order['tanggal_pembayaran']}")
+
                 row = sheet.find_order(order["nomor"])
-        
-                if row is not None:
+
+                status_lama = sheet.get_status(order["nomor"])
+
+                # Order WAITING dicek ulang (PDF mungkin sudah tersedia),
+                # yang lain dianggap sudah selesai.
+                if row is not None and status_lama != "WAITING":
         
                     summary["skip"] += 1
         
                     log("⏭ Sudah pernah diproses")
         
                     continue
+
+                if row is not None:
+
+                    log("🔁 Status sebelumnya WAITING, cek ulang PDF")
         
                 log(f"🌐 Membuka {order['detail']}")
                 
@@ -121,10 +131,21 @@ def run_backup(
         
                 if hasil["status"] == "WAITING":
 
-                    sheet.insert(
-                        order,
-                        "WAITING"
-                    )
+                    if row is None:
+
+                        sheet.insert(
+                            order,
+                            "WAITING"
+                        )
+
+                    else:
+
+                        sheet.update(
+                            row,
+                            last_check=datetime.now().strftime(
+                                "%Y-%m-%d %H:%M:%S"
+                            )
+                        )
                 
                     summary["waiting"] += 1
                 
@@ -174,7 +195,8 @@ def run_backup(
                 
                         drive_link = drive.upload(
                             file_pdf,
-                            order["tanggal_permohonan"]
+                            # Folder Drive mengikuti bulan Tanggal Pembayaran
+                            order["tanggal_pembayaran"]
                         )
                 
                         break
@@ -191,12 +213,14 @@ def run_backup(
                 
                     raise Exception("Upload Google Drive gagal.")
         
-                sheet.insert(
-                    order,
-                    "UPLOADED"
-                )
-                
-                row = sheet.find_order(order["nomor"])
+                if row is None:
+
+                    sheet.insert(
+                        order,
+                        "UPLOADED"
+                    )
+
+                    row = sheet.find_order(order["nomor"])
                 
                 if row is None:
                 
