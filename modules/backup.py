@@ -33,7 +33,10 @@ def run_backup(
         "uploaded": 0,
         "waiting": 0,
         "skip": 0,
-        "error": 0
+        "error": 0,
+        "bulan": bulan,
+        "waiting_list": [],
+        "error_list": []
     }
 
     start_time = time.time()
@@ -94,6 +97,31 @@ def run_backup(
         
         log(f"📄 Total order ditemukan : {len(orders)}")
 
+        def update_progress():
+
+            if progress and total_orders > 0:
+
+                progress.progress(min(summary["total"] / total_orders, 1.0))
+
+            if status:
+
+                persen = (summary["total"] / total_orders) * 100
+
+                status.markdown(
+                    f"""
+### 📦 Backup PTSP BMKG — {bulan}
+
+**Progress : {summary['total']} / {total_orders} ({persen:.1f}%)**
+
+| Status | Jumlah |
+|--------|-------:|
+| ✅ Uploaded | **{summary['uploaded']}** |
+| ⌛ Waiting | **{summary['waiting']}** |
+| ⏭ Sudah ada | **{summary['skip']}** |
+| ❌ Error | **{summary['error']}** |
+"""
+                )
+
         for order in orders:
 
             try:
@@ -109,19 +137,27 @@ def run_backup(
 
                 status_lama = sheet.get_status(order["nomor"])
 
-                # Order WAITING dicek ulang (PDF mungkin sudah tersedia),
-                # yang lain dianggap sudah selesai.
-                if row is not None and status_lama != "WAITING":
-        
-                    summary["skip"] += 1
-        
-                    log("⏭ Sudah pernah diproses")
-        
-                    continue
+                if row is not None and status_lama == "WAITING":
 
-                if row is not None:
-
+                    # PDF mungkin sudah tersedia sekarang
                     log("🔁 Status sebelumnya WAITING, cek ulang PDF")
+
+                elif row is not None:
+
+                    # Sudah pernah diupload: lewati hanya jika file-nya
+                    # masih ada di Google Drive (tidak dihapus/di Trash).
+                    if drive.file_exists(
+                        sheet.get_drive_link(order["nomor"]),
+                        bulan
+                    ):
+
+                        summary["skip"] += 1
+
+                        log("⏭ Sudah ada di Google Drive")
+
+                        continue
+
+                    log(f"♻ File tidak ditemukan di folder Drive {bulan}, download ulang")
         
                 log(f"🌐 Membuka {order['detail']}")
                 
@@ -148,6 +184,13 @@ def run_backup(
                         )
                 
                     summary["waiting"] += 1
+
+                    summary["waiting_list"].append({
+                        "No Permohonan": order["nomor"],
+                        "Tanggal Pembayaran": order["tanggal_pembayaran"],
+                        "Pemohon": order["pemohon"],
+                        "Perusahaan": order["perusahaan"]
+                    })
                 
                     log("⌛ PDF belum tersedia")
                 
@@ -284,32 +327,6 @@ def run_backup(
                 
                     log("✅ Browser berhasil direstart")
 
-                if progress and total_orders > 0:
-                
-                    persen = summary["total"] / total_orders
-                
-                    progress.progress(min(persen, 1.0))
-                
-                
-                if status:
-
-                    persen = (summary["total"] / total_orders) * 100
-                
-                    status.markdown(
-                        f"""
-                ### 📦 Backup PTSP BMKG
-                
-                **Progress : {summary['total']} / {total_orders} ({persen:.1f}%)**
-                
-                | Status | Jumlah |
-                |--------|-------:|
-                | ✅ Uploaded | **{summary['uploaded']}** |
-                | ⌛ Waiting | **{summary['waiting']}** |
-                | ⏭ Skip | **{summary['skip']}** |
-                | ❌ Error | **{summary['error']}** |
-                """
-                    )
-        
                 try:
 
                     if file_pdf and os.path.exists(file_pdf):
@@ -325,12 +342,20 @@ def run_backup(
             except Exception as e:
         
                 summary["error"] += 1
+
+                summary["error_list"].append({
+                    "No Permohonan": order["nomor"],
+                    "Tanggal Pembayaran": order.get("tanggal_pembayaran", ""),
+                    "Error": str(e)
+                })
         
                 log(f"❌ Gagal memproses {order['nomor']}")
         
                 log(str(e))
-        
-                continue
+
+            finally:
+
+                update_progress()
 
     finally:
 
