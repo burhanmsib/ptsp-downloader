@@ -36,7 +36,8 @@ def run_backup(
         "error": 0,
         "bulan": bulan,
         "waiting_list": [],
-        "error_list": []
+        "error_list": [],
+        "non_pdf_list": []
     }
 
     start_time = time.time()
@@ -139,8 +140,8 @@ def run_backup(
 
                 if row is not None and status_lama == "WAITING":
 
-                    # PDF mungkin sudah tersedia sekarang
-                    log("🔁 Status sebelumnya WAITING, cek ulang PDF")
+                    # Dokumen mungkin sudah tersedia sekarang
+                    log("🔁 Status sebelumnya WAITING, cek ulang dokumen")
 
                 elif row is not None:
 
@@ -192,15 +193,15 @@ def run_backup(
                         "Perusahaan": order["perusahaan"]
                     })
                 
-                    log("⌛ PDF belum tersedia")
+                    log("⌛ Dokumen belum tersedia di PTSP")
                 
                     continue
                 
                 if not hasil["pdf_url"]:
                 
-                    raise Exception("PDF URL kosong.")
+                    raise Exception("URL dokumen kosong.")
         
-                log("⬇ Download PDF...")
+                log(f"⬇ Download dokumen ({hasil.get('ext', '').upper()})...")
 
                 file_pdf = None
                 
@@ -226,7 +227,7 @@ def run_backup(
                 
                 if file_pdf is None:
                 
-                    raise Exception("Download PDF gagal.")
+                    raise Exception("Download dokumen gagal.")
         
                 log("☁ Upload Google Drive...")
 
@@ -302,6 +303,18 @@ def run_backup(
                             raise
         
                 summary["uploaded"] += 1
+
+                if hasil.get("ext", "pdf") != "pdf":
+
+                    summary["non_pdf_list"].append({
+                        "No Permohonan": order["nomor"],
+                        "Tanggal Pembayaran": order["tanggal_pembayaran"],
+                        "Jenis File": hasil.get("ext", "").upper() or "-",
+                        "Nama File": os.path.basename(file_pdf),
+                        "Google Drive": drive_link
+                    })
+
+                    log(f"ℹ Dokumen bukan PDF ({hasil.get('ext', '').upper()})")
 
                 log(f"✅ Upload selesai ({summary['uploaded']})")
 

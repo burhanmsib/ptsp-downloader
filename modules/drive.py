@@ -1,4 +1,5 @@
 import re
+import mimetypes
 import os
 from datetime import datetime
 
@@ -316,7 +317,10 @@ class DriveManager:
 
                 filepath,
 
-                mimetype="application/pdf",
+                mimetype=(
+                    mimetypes.guess_type(filepath)[0]
+                    or "application/octet-stream"
+                ),
 
                 resumable=False
 

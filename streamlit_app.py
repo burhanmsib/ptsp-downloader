@@ -32,7 +32,7 @@ st.set_page_config(
 st.title("📁 PTSP Downloader BMKG")
 
 st.caption(
-    "Backup otomatis PDF PTSP ke Google Drive dan Google Sheet"
+    "Backup otomatis dokumen PTSP (PDF, RAR, ZIP, dll) ke Google Drive dan Google Sheet"
 )
 
 st.divider()
@@ -174,11 +174,23 @@ if st.button(
                 f"({hasil['total']} order)."
             )
 
+        if hasil.get("non_pdf_list"):
+
+            st.info(
+                f"📦 {len(hasil['non_pdf_list'])} dokumen bukan PDF "
+                "(mis. RAR/ZIP) ikut disimpan ke folder Drive bulan ini:"
+            )
+
+            st.dataframe(
+                hasil["non_pdf_list"],
+                use_container_width=True
+            )
+
         if hasil.get("waiting_list"):
 
             st.warning(
                 f"⌛ {hasil['waiting']} order bulan {bulan_run} masih WAITING "
-                "(file belum tersedia di PTSP). Jalankan lagi bulan "
+                "(dokumen belum diunggah di PTSP). Jalankan lagi bulan "
                 f"{bulan_run} nanti untuk mem-backup-nya."
             )
 

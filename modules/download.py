@@ -1,6 +1,8 @@
 import os
 import requests
 
+from modules.utils import file_extension
+
 
 class PDFDownloader:
 
@@ -16,7 +18,7 @@ class PDFDownloader:
     def download(self, order, pdf_url):
 
         self.log("=" * 80)
-        self.log("⬇️ DOWNLOAD PDF")
+        self.log("⬇️ DOWNLOAD DOKUMEN")
         self.log("=" * 80)
 
         cookies = self.context.cookies()
@@ -34,13 +36,27 @@ class PDFDownloader:
                 cookie["value"]
             )
 
-        self.log("🌐 Mengunduh PDF...")
+        self.log("🌐 Mengunduh dokumen...")
 
         response = session.get(pdf_url)
 
         if response.status_code != 200:
 
             self.log(f"❌ Download gagal ({response.status_code})")
+
+            return None
+
+        # Jika server mengembalikan halaman HTML (mis. sesi habis),
+        # anggap gagal agar tidak mengupload file yang salah.
+        if "text/html" in response.headers.get("Content-Type", "").lower():
+
+            self.log("❌ Server mengembalikan halaman HTML, bukan file")
+
+            return None
+
+        if not response.content:
+
+            self.log("❌ File kosong")
 
             return None
 
@@ -52,7 +68,7 @@ class PDFDownloader:
         filename = (
             order["nomor"]
             .replace("/", "_")
-            + ".pdf"
+            + "." + (file_extension(pdf_url) or "pdf")
         )
 
         filepath = os.path.join(
