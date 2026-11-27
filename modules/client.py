@@ -328,14 +328,18 @@ class PTSPClient:
             const tabel = th ? th.closest("table") : null;
 
             if (tabel) {
-                return ambil(tabel);
+                return {tabel: true, links: ambil(tabel)};
             }
 
-            return ambil(document);
+            return {tabel: false, links: ambil(document)};
         }
         """)
 
-        if not links:
+        ada_tabel = links["tabel"]
+
+        links = links["links"]
+
+        if not links and not ada_tabel:
 
             # Cadangan: cari di HTML mentah
             links = re.findall(
